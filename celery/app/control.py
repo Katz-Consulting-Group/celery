@@ -522,6 +522,17 @@ class Control:
             'terminate': terminate,
             'signal': signal,
         }, **kwargs)
+        result = self.broadcast('revoke_by_stamped_header', destination=destination, arguments={
+            'header': header,
+            'terminate': terminate,
+            'signal': signal,
+        }, **kwargs)
+
+        task_ids = result.get('ok', None)
+        if task_ids:
+            return self.revoke(task_ids, destination=destination, terminate=terminate, signal=signal, **kwargs)
+        else:
+            return result
 
     def terminate(self, task_id,
                   destination=None, signal=TERM_SIGNAME, **kwargs):

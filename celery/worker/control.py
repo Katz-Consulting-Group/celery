@@ -213,7 +213,7 @@ def _revoke(state, task_ids, terminate=False, signal=None, **kwargs):
 
     idstr = ', '.join(task_ids)
     logger.info('Tasks flagged as revoked: %s', idstr)
-    return ok(f'tasks {idstr} flagged as revoked')
+    return ok(list(task_ids))
 
 
 @control_command(

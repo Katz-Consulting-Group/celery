@@ -22,16 +22,15 @@ name using the fully qualified form::
     $ celery -A myapp:app worker -l INFO
 
 """
+
 from time import sleep
 
 from celery import Celery
 
 app = Celery(
     'myapp',
-    broker='amqp://guest@localhost//',
-    # ## add result backend here if needed.
-    # backend='rpc'
-    task_acks_late=True
+    broker='pyamqp://',
+    backend='redis://',
 )
 
 
@@ -40,6 +39,21 @@ def add(x, y):
     sleep(10)
     return x + y
 
+
+# from celery.canvas import StampingVisitor
+# from uuid import uuid4
+# from time import sleep
+# target_monitoring_id = 1234
+# class MonitoringIdStampingVisitor(StampingVisitor):
+#     def on_signature(self, sig, **headers) -> dict:
+#         return {'monitoring_id': target_monitoring_id, 'stamped_headers': ['monitoring_id']}
+
+# sig = add.si(1, 1)
+# sig.stamp(visitor=MonitoringIdStampingVisitor())
+# r = sig.delay()
+# sleep(1)
+# r.revoke_by_stamped_header(header=[{'monitoring_id': target_monitoring_id}], terminate=True)
+# r.get()
 
 if __name__ == '__main__':
     app.start()

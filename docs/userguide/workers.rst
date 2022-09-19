@@ -470,6 +470,14 @@ at this point.
 
 .. _worker-time-limits:
 
+.. control:: revoke_by_stamped_header
+
+``revoke_by_stamped_header``: Revoking tasks by their stamped headers
+---------------------------------------------------------------------
+:pool support: TBD, terminate only supported by prefork and eventlet
+:broker support: *amqp, redis*
+:command: :program:`celery -A proj control revoke_by_stamped_header stamped_header_key`
+
 Time Limits
 ===========
 
