@@ -517,20 +517,19 @@ class Control:
         See Also:
             :meth:`broadcast` for supported keyword arguments.
         """
-        return self.broadcast('revoke_by_stamped_header', destination=destination, arguments={
-            'header': header,
-            'terminate': terminate,
-            'signal': signal,
-        }, **kwargs)
         result = self.broadcast('revoke_by_stamped_header', destination=destination, arguments={
             'header': header,
             'terminate': terminate,
             'signal': signal,
         }, **kwargs)
 
-        task_ids = result.get('ok', None)
+        task_ids = set()
+        for host in result:
+            for response in host.values():
+                task_ids.update(response['ok'])
+
         if task_ids:
-            return self.revoke(task_ids, destination=destination, terminate=terminate, signal=signal, **kwargs)
+            return self.revoke(list(task_ids), destination=destination, terminate=terminate, signal=signal, **kwargs)
         else:
             return result
 

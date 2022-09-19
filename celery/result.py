@@ -162,7 +162,7 @@ class AsyncResult(ResultBase):
                                 reply=wait, timeout=timeout)
 
     def revoke_by_stamped_header(self, header, connection=None, terminate=False, signal=None,
-                                 wait=False, timeout=None):
+                                 wait=True, timeout=10):
         """Send revoke signal to all workers only for tasks with matching a header (or list of headers).
 
         Any worker receiving the task, or having reserved the
@@ -177,7 +177,7 @@ class AsyncResult(ResultBase):
                 Default is TERM.
             wait (bool): Wait for replies from workers.
                 The ``timeout`` argument specifies the seconds to wait.
-                Disabled by default.
+                Enabled by default.
             timeout (float): Time in seconds to wait for replies when
                 ``wait`` is enabled.
         """
