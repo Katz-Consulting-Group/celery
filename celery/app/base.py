@@ -766,8 +766,7 @@ class Celery(object):
             reply_to or self.oid, time_limit, soft_time_limit,
             self.conf.task_send_sent_event,
             root_id, parent_id, shadow, chain,
-            argsrepr=options.get('argsrepr'),
-            kwargsrepr=options.get('kwargsrepr'),
+            **options
         )
 
         if connection:

@@ -24,7 +24,7 @@ from celery.exceptions import (Ignore, InvalidTaskError, Reject, Retry,
                                TimeLimitExceeded, WorkerLostError)
 from celery.five import monotonic, python_2_unicode_compatible, string
 from celery.platforms import signals as _signals
-from celery.utils.functional import maybe, noop
+from celery.utils.functional import maybe, maybe_list, noop
 from celery.utils.log import get_logger
 from celery.utils.nodenames import gethostname
 from celery.utils.serialization import get_pickled_exception
@@ -63,6 +63,7 @@ send_revoked = signals.task_revoked.send
 task_accepted = state.task_accepted
 task_ready = state.task_ready
 revoked_tasks = state.revoked
+revoked_headers = state.revoked_headers
 
 
 @python_2_unicode_compatible
@@ -411,10 +412,34 @@ class Request(object):
         expired = False
         if self._already_revoked:
             return True
-        if self._expires:
+        if self.expires:
             expired = self.maybe_expire()
-        if self.id in revoked_tasks:
-            info('Discarding revoked task: %s[%s]', self.name, self.id)
+        revoked_by_id = self.id in revoked_tasks
+        revoked_by_header, revoking_header = False, None
+
+        if hasattr(self, 'stamped_headers'):
+            if not revoked_by_id and self.stamped_headers:
+                for header in self.stamped_headers:
+                    if header in revoked_headers:
+                        revoked_header = revoked_headers[header]
+                        stamped_header = self._message.headers['stamps'][header]
+
+                        if isinstance(stamped_header, (list, tuple)):
+                            for stamped_value in stamped_header:
+                                if stamped_value in maybe_list(revoked_header):
+                                    revoked_by_header = True
+                                    revoking_header = {header: stamped_value}
+                                    break
+                        else:
+                            revoked_by_header = stamped_header in revoked_headers[header]
+                            revoking_header = {header: stamped_header}
+                        break
+
+        if any((expired, revoked_by_id, revoked_by_header)):
+            log_msg = 'Discarding revoked task: %s[%s]'
+            if revoked_by_header:
+                log_msg += ' (revoked by header: %s)' % revoking_header
+            info(log_msg, self.name, self.id)
             self._announce_revoked(
                 'expired' if expired else 'revoked', False, None, expired,
             )
@@ -484,6 +509,13 @@ class Request(object):
     def on_failure(self, exc_info, send_failed_event=True, return_ok=False):
         """Handler called if the task raised an exception."""
         task_ready(self)
+        exc = exc_info.exception
+
+        if isinstance(exc, Terminated):
+            if not self._already_revoked:
+                self._announce_revoked(
+                    'terminated', True, str(exc), False)
+            return
         if isinstance(exc_info.exception, MemoryError):
             raise MemoryError('Process got: %s' % (exc_info.exception,))
         elif isinstance(exc_info.exception, Reject):
@@ -612,6 +644,15 @@ class Request(object):
         return self._request_dict.get('group')
 
     @cached_property
+    def stamped_headers(self):
+        return self._request_dict.get('stamped_headers', [])
+
+    @cached_property
+    def stamps(self):
+        stamps = self._request_dict.get('stamps', {})
+        return {header: stamps[header] for header in self.stamped_headers or []}
+
+    @cached_property
     def _context(self):
         """Context (:class:`~celery.app.task.Context`) of this task."""
         request = self._request_dict
@@ -635,7 +676,7 @@ def create_request_cls(base, task, pool, hostname, eventer,
 
         def execute_using_pool(self, pool, **kwargs):
             task_id = self.task_id
-            if (self.expires or task_id in revoked_tasks) and self.revoked():
+            if self.revoked():
                 raise TaskRevokedError(task_id)
 
             time_limit, soft_time_limit = self.time_limits
