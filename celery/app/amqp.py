@@ -311,7 +311,8 @@ class AMQP(object):
                    time_limit=None, soft_time_limit=None,
                    create_sent_event=False, root_id=None, parent_id=None,
                    shadow=None, chain=None, now=None, timezone=None,
-                   origin=None, argsrepr=None, kwargsrepr=None):
+                   origin=None, argsrepr=None, kwargsrepr=None, stamped_headers=None,
+                   **options):
         args = args or ()
         kwargs = kwargs or {}
         if not isinstance(args, (list, tuple)):
@@ -354,6 +355,7 @@ class AMQP(object):
         if not root_id:  # empty root_id defaults to task_id
             root_id = task_id
 
+        stamps = {header: options[header] for header in stamped_headers or []}
         return task_message(
             headers={
                 'lang': 'py',
@@ -369,7 +371,9 @@ class AMQP(object):
                 'parent_id': parent_id,
                 'argsrepr': argsrepr,
                 'kwargsrepr': kwargsrepr,
-                'origin': origin or anon_nodename()
+                'origin': origin or anon_nodename(),
+                'stamped_headers': stamped_headers,
+                'stamps': stamps,
             },
             properties={
                 'correlation_id': task_id,

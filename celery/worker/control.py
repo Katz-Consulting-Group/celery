@@ -150,6 +150,55 @@ def revoke(state, task_id, terminate=False, signal=None, **kwargs):
     #     Outside of this scope that is a function.
     # supports list argument since 3.1
     task_ids, task_id = set(maybe_list(task_id) or []), None
+    task_ids = _revoke(state, task_ids, terminate, signal, **kwargs)
+    return ok('tasks {0} flagged as revoked'.format(task_ids))
+
+
+@control_command(
+    variadic='headers',
+    signature='[key1=value1 [key2=value2 [... [keyN=valueN]]]]',
+)
+def revoke_by_stamped_headers(state, headers, terminate=False, signal=None, **kwargs):
+    """Revoke task by header (or list of headers).
+
+    Keyword Arguments:
+        terminate (bool): Also terminate the process if the task is active.
+        signal (str): Name of signal to use for terminate (e.g., ``KILL``).
+    """
+    # pylint: disable=redefined-outer-name
+    # XXX Note that this redefines `terminate`:
+    #     Outside of this scope that is a function.
+    # supports list argument since 3.1
+    if isinstance(headers, list):
+        headers = {h.split('=')[0]: h.split('=')[1] for h in headers}, None
+
+    worker_state.revoked_headers.update(headers)
+
+    if not terminate:
+        return ok('headers {headers} flagged as revoked'.format(headers=headers))
+
+    task_ids = set()
+    requests = list(worker_state.active_requests)
+
+    # Terminate all running tasks of matching headers
+    if requests:
+        for req in requests:
+            if hasattr(req, 'stamped_headers') and req.stamped_headers:
+                for stamped_header_key, expected_header_value in headers.items():
+                    if stamped_header_key in req.stamped_headers and \
+                            stamped_header_key in req._message.headers['stamps']:
+                        actual_header = req._message.headers['stamps'][stamped_header_key]
+                        if expected_header_value in actual_header:
+                            task_ids.add(req.task_id)
+                            continue
+
+    task_ids = _revoke(state, task_ids, terminate, signal, **kwargs)
+    if isinstance(task_ids, dict):
+        return task_ids
+    return ok(list(task_ids))
+
+
+def _revoke(state, task_ids, terminate=False, signal=None, **kwargs):
     size = len(task_ids)
     terminated = set()
 
@@ -170,7 +219,7 @@ def revoke(state, task_id, terminate=False, signal=None, **kwargs):
 
     idstr = ', '.join(task_ids)
     logger.info('Tasks flagged as revoked: %s', idstr)
-    return ok('tasks {0} flagged as revoked'.format(idstr))
+    return task_ids
 
 
 @control_command(

@@ -94,6 +94,8 @@ class Context(object):
     origin = None
     _children = None   # see property
     _protected = 0
+    stamped_headers = None
+    stamps = None
 
     def __init__(self, *args, **kwargs):
         self.update(*args, **kwargs)
@@ -767,6 +769,12 @@ class Task(object):
             'headers': headers,
             'delivery_info': {'is_eager': True},
         }
+        if 'stamped_headers' in options:
+            request['stamped_headers'] = maybe_list(options['stamped_headers'])
+            request['stamps'] = {
+                header: maybe_list(options.get(header, [])) for header in request['stamped_headers']
+            }
+
         tb = None
         tracer = build_tracer(
             task.name, task, eager=True,
