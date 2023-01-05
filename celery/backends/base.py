@@ -7,7 +7,9 @@
     using K/V semantics like _get and _put.
 """
 from __future__ import absolute_import, unicode_literals
-from future.utils import raise_with_traceback
+# from future.utils import raise_with_traceback  # Python 2 does not support this
+def raise_with_traceback(exc):
+    raise exc
 
 from datetime import datetime, timedelta
 import sys
