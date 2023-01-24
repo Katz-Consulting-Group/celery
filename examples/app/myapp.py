@@ -22,15 +22,15 @@ name using the fully qualified form::
     $ celery -A myapp:app worker -l info
 
 """
-from __future__ import absolute_import, unicode_literals
 
-from celery import Celery
+import json
+from celery import Celery, Task
+from celery.signals import task_received
 
 app = Celery(
-    'myapp',
-    broker='amqp://guest@localhost//',
-    # ## add result backend here if needed.
-    # backend='rpc'
+    "myapp",
+    broker="redis://",
+    backend="redis://",
 )
 
 
@@ -39,5 +39,25 @@ def add(x, y):
     return x + y
 
 
-if __name__ == '__main__':
+@app.task
+def identity(x):
+    return x
+
+
+@app.task(bind=True)
+def replaced_task(self: Task):
+    self.replace(add.s(1, 1) | identity.s())
+
+
+@task_received.connect
+def task_received_handler(sender=None, request=None, signal=None, **kwargs):
+    print(f"In {signal.name} for: {repr(request)}")
+    if hasattr(request, "stamped_headers") and request.stamped_headers:
+        print(f"Found stamps: {request.stamped_headers}")
+        print(json.dumps(request.stamps, indent=4, sort_keys=True))
+    else:
+        print("No stamps found")
+
+
+if __name__ == "__main__":
     app.start()
