@@ -897,6 +897,26 @@ class Task(object):
             for t in reversed(self.request.chain):
                 sig |= signature(t, app=self.app)
 
+        # Stamping sig with parents groups
+        if self.request.stamps:
+            stamped_headers = self.request.stamped_headers.copy()
+            stamps = self.request.stamps.copy()
+            stamped_headers.extend(sig.options.get('stamped_headers', []))
+            stamps.update({
+                stamp: value
+                for stamp, value in sig.options.items() if stamp in sig.options.get('stamped_headers', [])
+            })
+            sig.options['stamped_headers'] = stamped_headers
+            sig.options.update(stamps)
+
+            if hasattr(sig, "tasks"):
+                tasks = sig.tasks
+                if isinstance(tasks, group):
+                    tasks = tasks.tasks
+                for task in tasks:
+                    task.options['stamped_headers'] = stamped_headers
+                    task.options.update(stamps)
+
         sig.set(
             chord=chord,
             group_id=self.request.group,
