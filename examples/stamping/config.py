@@ -2,6 +2,6 @@ from celery import Celery
 
 app = Celery(
     'myapp',
-    broker='redis://',
+    broker='pyamqp://',
     backend='redis://',
 )

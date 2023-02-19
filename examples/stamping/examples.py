@@ -43,4 +43,4 @@ def run_example3():
 def run_example_with_replace():
     sig1 = identity.si("sig1")
     sig1.link(identity_task.si("sig1_link"))
-    sig1.delay()
+    sig1.apply_async(queue="celery5queue")

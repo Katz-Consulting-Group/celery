@@ -74,7 +74,7 @@ def replaced_identity(self: MonitoredTask, x):
 @app.task(bind=True, base=StampOnReplace)
 def identity(self: Task, x):
     log_demo(self)
-    return self.replace(replaced_identity.s(x))
+    return self.replace(replaced_identity.s(x).set(queue="celery5queue"))
 
 
 @app.task
