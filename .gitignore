@@ -31,3 +31,8 @@ htmlcov/
 coverage.xml
 test.db
 pip-wheel-metadata/
+
+
+.python-version
+.vscode
+blm-151_with_tests.patch
