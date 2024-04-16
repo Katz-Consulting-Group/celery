@@ -89,9 +89,11 @@ class Hub(bootsteps.StartStopStep):
         pass
 
     def stop(self, w):
+        # TODO
         w.hub.close()
 
     def terminate(self, w):
+        # TODO
         w.hub.close()
 
     def _patch_thread_primitives(self, w):
