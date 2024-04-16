@@ -60,17 +60,25 @@ class Hub(bootsteps.StartStopStep):
 
     def __init__(self, w, **kwargs):
         w.hub = None
+        w.hubs = []
+        if "|" in w.app.conf.broker_url:
+            w.app.conf.broker_multi_read = True
+            w.app.conf.broker_effective_readers = len(w.app.conf.broker_url.split("|"))
         super().__init__(w, **kwargs)
 
     def include_if(self, w):
         return w.use_eventloop
 
     def create(self, w):
-        w.hub = get_event_loop()
-        if w.hub is None:
-            required_hub = getattr(w._conninfo, 'requires_hub', None)
-            w.hub = set_event_loop((
-                required_hub if required_hub else _Hub)(w.timer))
+        if w.app.conf.broker_multi_read:
+            for _ in range(0, w.app.conf.broker_effective_readers):
+                w.hubs.append(_Hub(w.timer))
+            set_event_loop(None)
+        else:
+            w.hub = get_event_loop()
+            if w.hub is None:
+                required_hub = getattr(w._conninfo, "requires_hub", None)
+                w.hub = set_event_loop((required_hub if required_hub else _Hub)(w.timer))
         self._patch_thread_primitives(w)
         return self
 
