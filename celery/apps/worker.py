@@ -222,12 +222,15 @@ class Worker(WorkController):
         if not self.task_events:
             events = 'OFF (enable -E to monitor tasks in this worker)'
 
+        consumers = self.consumers or [self.consumer]
+        conninfo = '|'.join(c.conninfo for c in consumers)
+
         banner = BANNER.format(
             app=appr,
             hostname=safe_str(self.hostname),
             timestamp=datetime.now().replace(microsecond=0),
             version=VERSION_BANNER,
-            conninfo=self.app.connection().as_uri(),
+            conninfo=conninfo,
             results=self.app.backend.as_uri(),
             concurrency=concurrency,
             platform=safe_str(_platform.platform()),
