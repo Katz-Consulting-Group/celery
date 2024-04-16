@@ -24,6 +24,8 @@ class test_Hub:
 
     def setup_method(self):
         self.w = Mock(name='w')
+        self.w.app.conf.broker_url = ""
+        self.w.app.conf.broker_effective_readers = 1
         self.hub = Hub(self.w)
         self.w.hub = Mock(name='w.hub')
 
@@ -65,6 +67,7 @@ class test_Pool:
     def test_create_when_eventloop(self):
         w = Mock()
         w.use_eventloop = w.pool_putlocks = w.pool_cls.uses_semaphore = True
+        w.app.conf.broker_multi_read = False
         comp = Pool(w)
         w.pool = Mock()
         comp.create(w)

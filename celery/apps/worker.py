@@ -223,7 +223,7 @@ class Worker(WorkController):
             events = 'OFF (enable -E to monitor tasks in this worker)'
 
         consumers = self.consumers or [self.consumer]
-        conninfo = '|'.join(c.conninfo for c in consumers)
+        conninfo = '|'.join(c.url or c.app.connection().as_uri() for c in consumers)
 
         banner = BANNER.format(
             app=appr,

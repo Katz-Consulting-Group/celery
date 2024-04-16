@@ -86,6 +86,7 @@ NAMESPACES = Namespace(
         write_url=Option(None, type='string'),
         multi_read=Option(False, type='bool'),
         effective_readers=Option(1, type='int'),
+        multi_delimiter=Option("|", type='string'),
         transport=Option(type='string'),
         transport_options=Option({}, type='dict'),
         connection_timeout=Option(4, type='float'),

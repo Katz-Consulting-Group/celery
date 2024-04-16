@@ -61,10 +61,11 @@ class Hub(bootsteps.StartStopStep):
 
     def __init__(self, w, **kwargs):
         w.hub = None
-        w.hubs = []
-        if "|" in w.app.conf.broker_url:
+        w.hubs = [None]
+        if w.app.conf.broker_multi_delimiter in w.app.conf.broker_url:
             w.app.conf.broker_multi_read = True
-            w.app.conf.broker_effective_readers = len(w.app.conf.broker_url.split("|"))
+            effective_readers = len(w.app.conf.broker_url.split(w.app.conf.broker_multi_delimiter))
+            w.app.conf.broker_effective_readers = effective_readers
         super().__init__(w, **kwargs)
 
     def include_if(self, w):
@@ -72,6 +73,7 @@ class Hub(bootsteps.StartStopStep):
 
     def create(self, w):
         if w.app.conf.broker_multi_read:
+            w.hubs.clear()
             for _ in range(0, w.app.conf.broker_effective_readers):
                 w.hubs.append(_Hub(w.timer))
             set_event_loop(None)
@@ -238,56 +240,60 @@ class Consumer(bootsteps.StartStopStep):
             w.prefetch_multiplier,
             w.app.conf.broker_effective_readers
         )
-        for dist, hub, broker_url in zip(distribution, w.hubs, w.app.conf.broker_url.split("|")):
-            initial_prefetch_count = dist
-            prefetch_multiplier = 1 if w.app.conf.broker_multi_read else w.prefetch_multiplier
-            url = broker_url if w.app.conf.broker_multi_read else None
-            consumers.append(self.instantiate(
-                w.consumer_cls, w.process_task,
+        for dist, hub, broker_url in zip(
+            distribution,
+            w.hubs,
+            w.app.conf.broker_url.split(w.app.conf.broker_multi_delimiter),
+        ):
+            c = self.instantiate(
+                w.consumer_cls,
+                w.process_task,
                 hostname=w.hostname,
                 task_events=w.task_events,
                 init_callback=w.ready_callback,
-                initial_prefetch_count=initial_prefetch_count,
+                initial_prefetch_count=int(dist),
                 pool=w.pool,
                 timer=w.timer,
                 app=w.app,
                 controller=w,
-                hub=hub,
+                hub=hub or w.hub,
                 worker_options=w.options,
                 disable_rate_limits=w.disable_rate_limits,
-                prefetch_multiplier=prefetch_multiplier,
-                url=url,
-            ))
+                prefetch_multiplier=(
+                    1 if w.app.conf.broker_multi_read else w.prefetch_multiplier
+                ),
+                url=broker_url if w.app.conf.broker_multi_read else None,
+            )
+            consumers.append(c)
 
         if w.app.conf.broker_multi_read:
             w.consumer = None
             w.consumers = consumers
-            return consumers
+            return w.consumers
         else:
             w.consumer = consumers[0]
             w.consumers = None
             return w.consumer
 
     def start(self, parent):
-        if self.obj:
-            if isinstance(self.obj, list):
-                consumer_threads = []
-                for consumer in self.obj:
-                    t = Thread(target=consumer.start)
-                    consumer_threads.append(t)
-                    t.start()
-                return consumer_threads
-            return self.obj.start()
+        if not isinstance(self.obj, list):
+            return super().start(parent)
+
+        consumer_threads = []
+        for consumer in self.obj:
+            t = Thread(target=consumer.start)
+            consumer_threads.append(t)
+            t.start()
+        return consumer_threads
 
     def stop(self, parent):
-        if self.obj:
-            if isinstance(self.obj, list):
-                for consumer in self.obj:
-                    consumer.stop()
-            else:
-                self.obj.stop()
+        if not isinstance(self.obj, list):
+            return super().stop(parent)
 
-    def distribute_processes(con, mul, consumer):
+        for consumer in self.obj:
+            consumer.stop()
+
+    def distribute_processes(self, con, mul, consumer):
         total_processes = con * mul
         effective_consumers = min(consumer, total_processes)
         base_value = total_processes // effective_consumers

@@ -158,7 +158,9 @@ class WorkController:
 
     def on_stopped(self):
         self.timer.stop()
-        self.consumer.shutdown()
+
+        for c in self.consumers or [self.consumer]:
+            c.shutdown()
 
         if self.pidlock:
             self.pidlock.release()
@@ -230,10 +232,11 @@ class WorkController:
                 pass
 
     def signal_consumer_close(self):
-        try:
-            self.consumer.close()
-        except AttributeError:
-            pass
+        for c in self.consumers or [self.consumer]:
+            try:
+                c.close()
+            except AttributeError:
+                pass
 
     def should_use_eventloop(self):
         return (detect_environment() == 'default' and

@@ -3200,9 +3200,15 @@ class test_stamping_mechanism:
             link = None
             if request._Request__payload[2]["callbacks"]:
                 link = signature(request._Request__payload[2]["callbacks"][0])
+                if not link:
+                    assertion_result = False
+                    return
             link_error = None
             if request._Request__payload[2]["errbacks"]:
                 link_error = signature(request._Request__payload[2]["errbacks"][0])
+                if not link_error:
+                    assertion_result = False
+                    return
 
             assertion_result = all(
                 [

@@ -1143,6 +1143,8 @@ class test_WorkController(ConsumerCase):
 
     def test_Hub_create(self):
         w = Mock()
+        w.app.conf.broker_url = ""
+        w.app.conf.broker_effective_readers = 1
         x = components.Hub(w)
         x.create(w)
         assert w.timer.max_interval
@@ -1165,6 +1167,7 @@ class test_WorkController(ConsumerCase):
         from kombu.asynchronous.semaphore import LaxBoundedSemaphore
         w = Mock()
         w._conninfo.connection_errors = w._conninfo.channel_errors = ()
+        w.app.conf.broker_multi_read = False
         w.hub = Mock()
 
         PoolImp = Mock()
