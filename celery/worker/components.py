@@ -272,6 +272,8 @@ class Consumer(bootsteps.StartStopStep):
         if w.app.conf.broker_multi_read:
             w.consumer = None
             w.consumers = consumers
+            # TODO: Find all uses of w.consumer and adjust to support multiple consumers
+            # for c in self.consumers or [self.consumer]:
             return w.consumers
         else:
             w.consumer = consumers[0]
