@@ -181,7 +181,8 @@ class Consumer:
                  pool=None, app=None,
                  timer=None, controller=None, hub=None, amqheartbeat=None,
                  worker_options=None, disable_rate_limits=False,
-                 initial_prefetch_count=2, prefetch_multiplier=1, url=None, **kwargs):
+                 initial_prefetch_count=2, prefetch_multiplier=1, url=None,
+                 num_processes=None, **kwargs):
         self.app = app
         self.url = url
         self.controller = controller
@@ -205,6 +206,7 @@ class Consumer:
         self.initial_prefetch_count = initial_prefetch_count
         self.prefetch_multiplier = prefetch_multiplier
         self._maximum_prefetch_restored = True
+        self.num_processes = num_processes or self.pool.num_processes
 
         # this contains a tokenbucket for each task type by name, used for
         # rate limits, or None if rate limits are disabled for that task.
@@ -272,11 +274,11 @@ class Consumer:
             of +1 if the initial size of the pool was 0 (e.g.
             :option:`--autoscale=1,0 <celery worker --autoscale>`).
         """
-        num_processes = self.pool.num_processes
+        num_processes = self.num_processes
         if not self.initial_prefetch_count or not num_processes:
             return  # prefetch disabled
         self.initial_prefetch_count = (
-            self.pool.num_processes * self.prefetch_multiplier
+            self.num_processes * self.prefetch_multiplier
         )
         return self._update_qos_eventually(index)
 
@@ -719,7 +721,7 @@ class Consumer:
 
     @property
     def max_prefetch_count(self):
-        return self.pool.num_processes * self.prefetch_multiplier
+        return self.num_processes * self.prefetch_multiplier
 
     @property
     def _new_prefetch_count(self):

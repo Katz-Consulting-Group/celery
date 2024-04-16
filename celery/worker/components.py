@@ -235,7 +235,7 @@ class Consumer(bootsteps.StartStopStep):
             prefetch_count = w.concurrency * w.prefetch_multiplier
 
         consumers = []
-        distribution = self.distribute_processes(
+        distribution = self.distribute_prefetch(
             prefetch_count / w.prefetch_multiplier,
             w.prefetch_multiplier,
             w.app.conf.broker_effective_readers
@@ -263,6 +263,7 @@ class Consumer(bootsteps.StartStopStep):
                     1 if w.app.conf.broker_multi_read else w.prefetch_multiplier
                 ),
                 url=broker_url if w.app.conf.broker_multi_read else None,
+                num_processes=int(dist),
             )
             consumers.append(c)
 
@@ -293,12 +294,34 @@ class Consumer(bootsteps.StartStopStep):
         for consumer in self.obj:
             consumer.stop()
 
-    def distribute_processes(self, con, mul, consumer):
-        total_processes = con * mul
-        effective_consumers = min(consumer, total_processes)
-        base_value = total_processes // effective_consumers
-        remainder = total_processes % effective_consumers
-        distribution = [base_value + 1 if i < remainder else base_value for i in range(effective_consumers)]
-        if consumer > total_processes:
-            distribution.extend([1] * (consumer - total_processes))
+    def distribute_prefetch(self, concurrency: int, prefetch_multiplier: int, consumers_count: int) -> list:
+        """Distribute the available prefetch count among consumers.
+
+        Each consumer will have its own concurrency and a multiplier of 1, so the prefetch count
+        will be distributed among consumers evenly as much as possible. This algorithm
+        will calculate the distribution of the concurrency itself and initial prefetch count for the consumers.
+
+        Args:
+            concurrency (int): Original concurrency value. Greater than 0.
+            prefetch_multiplier (int): Original prefetch_multiplier value. Greater than 0.
+            consumers_count (int): Number of consumers. Greater than 0.
+
+        Returns:
+            list: Distribution values for the consumers.
+        """
+        # Original prefetch count that needs to be distributed
+        full_prefetch_count = concurrency * prefetch_multiplier
+
+        # Calculate "full" chunks and "remainder" chunks
+        chunks = min(consumers_count, full_prefetch_count)
+        dist_chunk = full_prefetch_count // chunks
+        remainder = full_prefetch_count % chunks
+
+        # Distribute evently between "full" chunks
+        distribution = [dist_chunk + 1 if i < remainder else dist_chunk for i in range(chunks)]
+
+        # Padding with prefetch count of 1s if there are more consumers than available concurrency
+        if consumers_count > full_prefetch_count:
+            distribution.extend([1] * (consumers_count - full_prefetch_count))
+
         return distribution
