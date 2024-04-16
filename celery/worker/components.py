@@ -1,6 +1,7 @@
 """Worker-level Bootsteps."""
 import atexit
 import warnings
+from threading import Thread
 
 from kombu.asynchronous import Hub as _Hub
 from kombu.asynchronous import get_event_loop, set_event_loop
@@ -230,19 +231,68 @@ class Consumer(bootsteps.StartStopStep):
             prefetch_count = max(w.max_concurrency, 1) * w.prefetch_multiplier
         else:
             prefetch_count = w.concurrency * w.prefetch_multiplier
-        c = w.consumer = self.instantiate(
-            w.consumer_cls, w.process_task,
-            hostname=w.hostname,
-            task_events=w.task_events,
-            init_callback=w.ready_callback,
-            initial_prefetch_count=prefetch_count,
-            pool=w.pool,
-            timer=w.timer,
-            app=w.app,
-            controller=w,
-            hub=w.hub,
-            worker_options=w.options,
-            disable_rate_limits=w.disable_rate_limits,
-            prefetch_multiplier=w.prefetch_multiplier,
+
+        consumers = []
+        distribution = self.distribute_processes(
+            prefetch_count / w.prefetch_multiplier,
+            w.prefetch_multiplier,
+            w.app.conf.broker_effective_readers
         )
-        return c
+        for dist, hub, broker_url in zip(distribution, w.hubs, w.app.conf.broker_url.split("|")):
+            initial_prefetch_count = dist
+            prefetch_multiplier = 1 if w.app.conf.broker_multi_read else w.prefetch_multiplier
+            url = broker_url if w.app.conf.broker_multi_read else None
+            consumers.append(self.instantiate(
+                w.consumer_cls, w.process_task,
+                hostname=w.hostname,
+                task_events=w.task_events,
+                init_callback=w.ready_callback,
+                initial_prefetch_count=initial_prefetch_count,
+                pool=w.pool,
+                timer=w.timer,
+                app=w.app,
+                controller=w,
+                hub=hub,
+                worker_options=w.options,
+                disable_rate_limits=w.disable_rate_limits,
+                prefetch_multiplier=prefetch_multiplier,
+                url=url,
+            ))
+
+        if w.app.conf.broker_multi_read:
+            w.consumer = None
+            w.consumers = consumers
+            return consumers
+        else:
+            w.consumer = consumers[0]
+            w.consumers = None
+            return w.consumer
+
+    def start(self, parent):
+        if self.obj:
+            if isinstance(self.obj, list):
+                consumer_threads = []
+                for consumer in self.obj:
+                    t = Thread(target=consumer.start)
+                    consumer_threads.append(t)
+                    t.start()
+                return consumer_threads
+            return self.obj.start()
+
+    def stop(self, parent):
+        if self.obj:
+            if isinstance(self.obj, list):
+                for consumer in self.obj:
+                    consumer.stop()
+            else:
+                self.obj.stop()
+
+    def distribute_processes(con, mul, consumer):
+        total_processes = con * mul
+        effective_consumers = min(consumer, total_processes)
+        base_value = total_processes // effective_consumers
+        remainder = total_processes % effective_consumers
+        distribution = [base_value + 1 if i < remainder else base_value for i in range(effective_consumers)]
+        if consumer > total_processes:
+            distribution.extend([1] * (consumer - total_processes))
+        return distribution
