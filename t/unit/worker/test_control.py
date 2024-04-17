@@ -41,6 +41,8 @@ class Consumer(consumer.Consumer):
         self.task_consumer = Mock()
         self.prefetch_multiplier = 1
         self.initial_prefetch_count = 1
+        self.num_processes = 1
+        self.url = None
 
         from celery.concurrency.base import BasePool
         self.pool = BasePool(10)

@@ -30,10 +30,12 @@ class ConsumerTestCase:
             timer=Mock(),
             controller=Mock(),
             hub=None if no_hub else Mock(),
+            num_processes=None,
+            url=None,
             **kwargs
         )
         consumer.blueprint = Mock(name='blueprint')
-        consumer.pool.num_processes = 2
+        consumer.num_processes = 2
         consumer._restart_state = Mock(name='_restart_state')
         consumer.connection = _amqp_connection()
         consumer.connection_errors = (socket.error, OSError,)
@@ -82,11 +84,11 @@ class test_Consumer(ConsumerTestCase):
         c = self.get_consumer()
         c._update_qos_eventually = Mock(name='update_qos')
         c.initial_prefetch_count = None
-        c.pool.num_processes = None
+        c.num_processes = None
         c.prefetch_multiplier = 10
         assert c._update_prefetch_count(1) is None
         c.initial_prefetch_count = 10
-        c.pool.num_processes = 10
+        c.num_processes = 10
         c._update_prefetch_count(8)
         c._update_qos_eventually.assert_called_with(8)
         assert c.initial_prefetch_count == 10 * 10
