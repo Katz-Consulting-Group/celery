@@ -24,8 +24,10 @@ class test_Hub:
 
     def setup_method(self):
         self.w = Mock(name='w')
+        # TODO: See if there's a way to avoid setting these attributes in the tests
         self.w.app.conf.broker_url = ""
         self.w.app.conf.broker_effective_readers = 1
+        self.w.app.conf.broker_multi_delimiter = "|"
         self.hub = Hub(self.w)
         self.w.hub = Mock(name='w.hub')
 

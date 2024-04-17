@@ -1145,6 +1145,7 @@ class test_WorkController(ConsumerCase):
         w = Mock()
         w.app.conf.broker_url = ""
         w.app.conf.broker_effective_readers = 1
+        w.app.conf.broker_multi_delimiter = "|"
         x = components.Hub(w)
         x.create(w)
         assert w.timer.max_interval
