@@ -61,7 +61,7 @@ class test_Inspect:
             assert re.fullmatch(r'\S+ \[name=\S+\]', task_info)
 
     @flaky
-    def test_active_queues(self, inspect):
+    def test_active_queues(self, inspect, manager):
         """Tests listing active queues"""
         ret = inspect.active_queues()
         assert len(ret) == 1
@@ -92,7 +92,7 @@ class test_Inspect:
                 'name': 'celery',
                 'no_ack': False,
                 'no_declare': None,
-                'queue_arguments': None,
+                'queue_arguments': {"x-queue-type": "quorum"} if manager.app.conf.worker_quorumq else None,
                 'routing_key': 'celery'}
         ]
 

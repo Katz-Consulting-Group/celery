@@ -345,7 +345,7 @@ NAMESPACES = Namespace(
         task_log_format=Option(DEFAULT_TASK_LOG_FMT),
         timer=Option(type='string'),
         timer_precision=Option(1.0, type='float'),
-        quorumq=Option(False, type='bool'),
+        quorumq=Option(True, type='bool'),
     ),
 )
 

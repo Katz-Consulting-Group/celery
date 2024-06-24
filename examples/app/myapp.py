@@ -9,7 +9,7 @@ from celery.canvas import group
 
 app = Celery("myapp", broker="amqp://guest@localhost:5672//")
 
-app.conf.worker_quorumq = os.environ.get("WORKER_QUORUMQ", "False").lower() == "true"
+# app.conf.worker_quorumq = os.environ.get("WORKER_QUORUMQ", "False").lower() == "true"
 
 # if app.conf.worker_quorumq:
 #     app.conf.task_queues = (my_quorum_queue,)
