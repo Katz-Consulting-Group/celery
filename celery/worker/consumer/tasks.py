@@ -46,7 +46,7 @@ class Tasks(bootsteps.StartStopStep):
 
         # set initial prefetch count
         c.connection.default_channel.basic_qos(
-            0, c.initial_prefetch_count, qos_global,
+            0, c.initial_prefetch_count if qos_global else 0, qos_global,
         )
 
         c.task_consumer = c.app.amqp.TaskConsumer(
